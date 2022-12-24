@@ -7,18 +7,19 @@ class FatchData {
   categoryId;
   brandId;
   ids=[];
-  categoryName;
-  totalPage;
+  startPage;
+  endPage;
   #settings = { method: "Get" };
-  constructor(category_id, brand_id,categoryName,totalPage,keepData) {
+  constructor(category_id, brand_id,startPage,endPage) {
     this.categoryId = category_id;
     this.brandId = brand_id; 
-    this.categoryName = categoryName; 
-    this.totalPage = totalPage; 
+    this.startPage = parseInt(startPage); 
+    this.endPage = parseInt(endPage); 
   }
 
-  async getData() {
-    this.ids= await this.getProductIdsFromCategory();
+  async getData(category,filter) {
+    if(filter=="")filter=null;
+    this.ids= await this.getProductIdsFromCategory(category,filter);
     if(this.ids.length===0){
       console.log(chalk.red("no products found"))
       return null;
@@ -28,11 +29,11 @@ class FatchData {
       await this.#getProduct(id);
     }
   }
+
   async #getProduct(id) {
     let url = `https://api.digikala.com/v1/product/${id}/`;
     const { data } = await fetch(url, this.#settings).then((res) => res.json());
     const { product } = data;
-
     if (!("is_inactive" in product)) {
       this.#updateJson({
         name: product.title_fa,
@@ -42,7 +43,7 @@ class FatchData {
         price: 0,
         id: id,
         specifications: product.specifications[0]?.attributes ?? null,
-        descrption: product?.review?.description,
+        description: product.review.description??"--",
       });
       console.log(chalk.green(`id =>> ${id} inserted try to  get images`));
       //   const imageArr=data.product.images.list;
@@ -82,18 +83,22 @@ class FatchData {
     console.log(chalk.green(`product =>> ${id} image save successfully`));
     return id;
   }
-  async getProductIdsFromCategory() {
-    for (let index = 1; index <= this.totalPage; index++) {
-      let url = `https://api.digikala.com/v1/categories/${this.categoryName}/search/?page=${index}`;
-      const { data ,status} = await fetch(url, this.#settings).then((res) =>
-        res.json()
-      );
+
+
+
+  async getProductIdsFromCategory(category,filter=null) {
+    for (let index = this.startPage; index <= this.endPage; index++) {
+      let url = `https://api.digikala.com/v1/categories/${category}/search/?page=${index}`;
+      (filter!=null)?url+=`&${filter}`:""
+      const { data ,status} = await fetch(url, this.#settings).then(res =>res.json());
       if(status===404 || !("products" in data)){
         return []
       }
     return data.products.map(p => p.id);
     }
+    return []
   }
+
 
 }
 
